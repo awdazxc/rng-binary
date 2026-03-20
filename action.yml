@@ -1,0 +1,39 @@
+name: Install Release Notes Generator
+description: Install gen_release_notes.sh from tag using raw files
+
+inputs:
+  version:
+    description: "Release Notes Generator version tag (example: v1.0.3 or 1.0.3). If not specified, latest from main will be used."
+    required: false
+
+outputs:
+  installed-version:
+    description: "Installed Release Notes Generator version"
+    value: ${{ steps.get_version.outputs.installed-version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Download gen_release_notes.sh
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        if [ -n "$VERSION" ]; then
+          if [[ $VERSION != v* ]]; then VERSION="v$VERSION"; fi
+          echo "Downloading Release Notes Generator from tag: $VERSION"
+          curl -f -L -o gen_release_notes.sh \
+            "https://raw.githubusercontent.com/Greewil/release-notes-generator/${VERSION}/gen_release_notes.sh"
+        else
+          echo "Downloading latest Release Notes Generator from main branch"
+          curl -f -L -o gen_release_notes.sh \
+            "https://raw.githubusercontent.com/Greewil/release-notes-generator/main/gen_release_notes.sh"
+        fi
+        chmod +x gen_release_notes.sh
+
+    - name: Get installed version
+      id: get_version
+      shell: bash
+      run: |
+        VERSION=$(./gen_release_notes.sh --version 2>/dev/null || echo "latest")
+        echo "installed-version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "Installed version: $VERSION"
