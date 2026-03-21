@@ -1,39 +1,72 @@
-name: Install Release Notes Generator
-description: Install gen_release_notes.sh from tag using raw files
+name: Generate Release Notes and Create Release
+description: Install gen_release_notes.sh, generate changelog and create GitHub release
 
 inputs:
-  version:
-    description: "Release Notes Generator version tag (example: v1.0.3 or 1.0.3). If not specified, latest from main will be used."
+  rng_version:
+    description: "Release Notes Generator version (e.g., v1.0.3 or 1.0.3)"
+    required: true
+
+  release_tag:
+    description: "Release tag name (e.g., v1.2.3 or api-1.0.0-web-2.0.0)"
+    required: true
+
+  release_name:
+    description: "Release name. If not specified, uses release_tag."
     required: false
 
 outputs:
-  installed-version:
-    description: "Installed Release Notes Generator version"
-    value: ${{ steps.get_version.outputs.installed-version }}
+  changelog:
+    description: "Generated changelog content"
+    value: ${{ steps.changelog.outputs.changelog }}
+  is_empty:
+    description: "True if changelog is empty"
+    value: ${{ steps.changelog.outputs.is_empty }}
+  release_url:
+    description: "URL of created release"
+    value: ${{ steps.create_release.outputs.release_url }}
 
 runs:
   using: composite
   steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
     - name: Download gen_release_notes.sh
       shell: bash
       run: |
-        VERSION="${{ inputs.version }}"
-        if [ -n "$VERSION" ]; then
-          if [[ $VERSION != v* ]]; then VERSION="v$VERSION"; fi
-          echo "Downloading Release Notes Generator from tag: $VERSION"
-          curl -f -L -o gen_release_notes.sh \
-            "https://raw.githubusercontent.com/Greewil/release-notes-generator/${VERSION}/gen_release_notes.sh"
-        else
-          echo "Downloading latest Release Notes Generator from main branch"
-          curl -f -L -o gen_release_notes.sh \
-            "https://raw.githubusercontent.com/Greewil/release-notes-generator/main/gen_release_notes.sh"
-        fi
+        VERSION="${{ inputs.rng_version }}"
+        if [[ $VERSION != v* ]]; then VERSION="v$VERSION"; fi
+        curl -f -L -o gen_release_notes.sh \
+          "https://raw.githubusercontent.com/Greewil/release-notes-generator/${VERSION}/gen_release_notes.sh"
         chmod +x gen_release_notes.sh
 
-    - name: Get installed version
-      id: get_version
+    - name: Generate changelog
+      id: changelog
       shell: bash
       run: |
-        VERSION=$(./gen_release_notes.sh --version 2>/dev/null || echo "latest")
-        echo "installed-version=$VERSION" >> "$GITHUB_OUTPUT"
-        echo "Installed version: $VERSION"
+        ./gen_release_notes.sh -i .. -lt -f changelog.md
+
+        if [ -f "changelog.md" ]; then
+          CHANGELOG=$(cat changelog.md)
+          echo "$CHANGELOG"
+          echo 'CHANGELOG<<EOF' >> "$GITHUB_OUTPUT"
+          echo "$CHANGELOG" >> "$GITHUB_OUTPUT"
+          echo 'EOF' >> "$GITHUB_OUTPUT"
+          echo "IS_EMPTY=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "IS_EMPTY=true" >> "$GITHUB_OUTPUT"
+          echo "changelog=" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Create Release
+      id: create_release
+      if: ${{ steps.changelog.outputs.IS_EMPTY == 'false' }}
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: "${{ inputs.release_tag }}"
+        release_name: "${{ inputs.release_name || inputs.release_tag }}"
+        body: ${{ steps.changelog.outputs.changelog }}
