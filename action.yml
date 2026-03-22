@@ -6,14 +6,6 @@ inputs:
     description: "Release Notes Generator version (e.g., v1.0.3 or 1.0.3)"
     required: true
 
-  release_tag:
-    description: "Release tag name (e.g., v1.2.3 or api-1.0.0-web-2.0.0)"
-    required: true
-
-  release_name:
-    description: "Release name. If not specified, uses release_tag."
-    required: false
-
 outputs:
   changelog:
     description: "Generated changelog content"
@@ -21,14 +13,11 @@ outputs:
   is_empty:
     description: "True if changelog is empty"
     value: ${{ steps.changelog.outputs.is_empty }}
-  release_url:
-    description: "URL of created release"
-    value: ${{ steps.create_release.outputs.release_url }}
 
 runs:
   using: composite
   steps:
-    - name: Checkout
+    - name: Git clone this repo
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
@@ -42,7 +31,7 @@ runs:
           "https://raw.githubusercontent.com/Greewil/release-notes-generator/${VERSION}/gen_release_notes.sh"
         chmod +x gen_release_notes.sh
 
-    - name: Generate changelog
+    - name: Generate release notes
       id: changelog
       shell: bash
       run: |
@@ -51,22 +40,11 @@ runs:
         if [ -f "changelog.md" ]; then
           CHANGELOG=$(cat changelog.md)
           echo "$CHANGELOG"
-          echo 'CHANGELOG<<EOF' >> "$GITHUB_OUTPUT"
+          echo 'changelog<<EOF' >> "$GITHUB_OUTPUT"
           echo "$CHANGELOG" >> "$GITHUB_OUTPUT"
           echo 'EOF' >> "$GITHUB_OUTPUT"
-          echo "IS_EMPTY=false" >> "$GITHUB_OUTPUT"
+          echo "is_empty=false" >> "$GITHUB_OUTPUT"
         else
-          echo "IS_EMPTY=true" >> "$GITHUB_OUTPUT"
+          echo "is_empty=true" >> "$GITHUB_OUTPUT"
           echo "changelog=" >> "$GITHUB_OUTPUT"
         fi
-
-    - name: Create Release
-      id: create_release
-      if: ${{ steps.changelog.outputs.IS_EMPTY == 'false' }}
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: "${{ inputs.release_tag }}"
-        release_name: "${{ inputs.release_name || inputs.release_tag }}"
-        body: ${{ steps.changelog.outputs.changelog }}

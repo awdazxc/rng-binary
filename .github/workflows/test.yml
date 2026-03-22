@@ -1,0 +1,26 @@
+name: Test RNG Action
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-rng:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate Release Notes
+        id: rng
+        uses: ./
+        with:
+          rng_version: "v1.0.3"
+
+      - name: Show outputs
+        run: |
+          echo "Changelog:"
+          echo "${{ steps.rng.outputs.changelog }}"
+          echo ""
+          echo "Is empty: ${{ steps.rng.outputs.is_empty }}"
