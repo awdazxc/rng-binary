@@ -36,15 +36,11 @@ runs:
       shell: bash
       run: |
         ./gen_release_notes.sh -i .. -lt -f changelog.md
+        [ -f "changelog.md" ] && CHANGELOG=$(cat changelog.md) || CHANGELOG=''
+        echo "$CHANGELOG"
+        echo 'changelog<<EOF' >> "$GITHUB_OUTPUT"
+        echo "$CHANGELOG" >> "$GITHUB_OUTPUT"
+        echo 'EOF' >> "$GITHUB_OUTPUT"
 
-        if [ -f "changelog.md" ]; then
-          CHANGELOG=$(cat changelog.md)
-          echo "$CHANGELOG"
-          echo 'changelog<<EOF' >> "$GITHUB_OUTPUT"
-          echo "$CHANGELOG" >> "$GITHUB_OUTPUT"
-          echo 'EOF' >> "$GITHUB_OUTPUT"
-          echo "is_empty=false" >> "$GITHUB_OUTPUT"
-        else
-          echo "is_empty=true" >> "$GITHUB_OUTPUT"
-          echo "changelog=" >> "$GITHUB_OUTPUT"
-        fi
+        [ -f 'changelog.md' ] && echo "is_empty=false" >> "$GITHUB_OUTPUT"
+        [ -f 'changelog.md' ] || echo "is_empty=true" >> "$GITHUB_OUTPUT"

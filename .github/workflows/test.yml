@@ -18,6 +18,14 @@ jobs:
         with:
           rng_version: "v1.0.3"
 
+      - name: Debug changelog
+        run: |
+          ls -la changelog.md
+          echo "Content:"
+          cat changelog.md
+          echo "Lines:"
+          wc -l changelog.md
+
       - name: Show outputs
         run: |
           echo "Changelog:"
